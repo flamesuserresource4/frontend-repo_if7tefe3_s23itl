@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { X, LockKeyhole, Mail } from 'lucide-react';
+import { X, LockKeyhole, Mail, User as UserIcon, FileText } from 'lucide-react';
 
 export default function SignInModal({ open, onClose, onSubmit }) {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [preferences, setPreferences] = useState('');
+  const [resume, setResume] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -18,7 +21,25 @@ export default function SignInModal({ open, onClose, onSubmit }) {
     }
     try {
       setLoading(true);
-      await onSubmit?.({ email, password });
+      const formData = new FormData();
+      if (name) formData.append('name', name);
+      formData.append('email', email);
+      formData.append('password', password);
+      if (preferences) formData.append('preferences', preferences);
+      if (resume) formData.append('resume', resume);
+
+      const base = import.meta.env.VITE_BACKEND_URL;
+      const res = await fetch(`${base}/auth/signin`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.detail || 'Sign in failed');
+      }
+      const data = await res.json();
+      onSubmit?.(data);
+      onClose?.();
     } catch (err) {
       setError(err?.message || 'Sign in failed');
     } finally {
@@ -29,7 +50,7 @@ export default function SignInModal({ open, onClose, onSubmit }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-[92vw] max-w-md overflow-hidden rounded-2xl border border-white/10 bg-slate-900 p-6 text-white shadow-2xl">
+      <div className="relative z-10 w-[92vw] max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-slate-900 p-6 text-white shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
           <div className="text-lg font-semibold">Sign in to Inter-India</div>
           <button
@@ -41,9 +62,22 @@ export default function SignInModal({ open, onClose, onSubmit }) {
           </button>
         </div>
         <p className="mb-4 text-sm text-white/70">
-          Use your account to access your dashboard. Authentication will connect to the secure backend shortly.
+          New here? Enter your name, preferences, and upload your resume. Returning users can sign in with email and password.
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-xs text-white/70">Full name (for new users)</label>
+            <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-slate-800/70 px-3 py-2">
+              <UserIcon size={16} className="text-white/50" />
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+                className="w-full bg-transparent text-sm outline-none placeholder:text-white/40"
+              />
+            </div>
+          </div>
           <div>
             <label className="mb-1 block text-xs text-white/70">Email</label>
             <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-slate-800/70 px-3 py-2">
@@ -55,6 +89,7 @@ export default function SignInModal({ open, onClose, onSubmit }) {
                 placeholder="you@example.com"
                 className="w-full bg-transparent text-sm outline-none placeholder:text-white/40"
                 autoFocus
+                required
               />
             </div>
           </div>
@@ -68,8 +103,33 @@ export default function SignInModal({ open, onClose, onSubmit }) {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="w-full bg-transparent text-sm outline-none placeholder:text-white/40"
+                required
               />
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs text-white/70">Preferences (comma separated)</label>
+            <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-slate-800/70 px-3 py-2">
+              <FileText size={16} className="text-white/50" />
+              <input
+                type="text"
+                value={preferences}
+                onChange={(e) => setPreferences(e.target.value)}
+                placeholder="e.g. react, python, data, security"
+                className="w-full bg-transparent text-sm outline-none placeholder:text-white/40"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs text-white/70">Upload resume (PDF/DOC)</label>
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx"
+              onChange={(e) => setResume(e.target.files?.[0] || null)}
+              className="w-full text-sm text-white/80 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-600 file:px-3 file:py-2 file:text-white hover:file:bg-indigo-500"
+            />
           </div>
 
           {error && (
@@ -83,7 +143,7 @@ export default function SignInModal({ open, onClose, onSubmit }) {
             disabled={loading}
             className="inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {loading ? 'Signing in…' : 'Sign in'}
+            {loading ? 'Processing…' : 'Continue'}
           </button>
         </form>
       </div>
