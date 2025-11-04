@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import Spline from '@splinetool/react-spline';
 import { Rocket, Sparkles } from 'lucide-react';
 
 export default function Hero() {
+  // Precompute the 24 spokes for the Ashoka Chakra emblem
+  const spokes = useMemo(() => Array.from({ length: 24 }, (_, i) => i * 15), []);
+
   return (
     <section className="relative min-h-[70vh] w-full overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white">
       {/* 3D Spline Scene */}
@@ -11,6 +14,35 @@ export default function Hero() {
           scene="https://prod.spline.design/4cHQr84zOGAHOehh/scene.splinecode"
           style={{ width: '100%', height: '100%' }}
         />
+      </div>
+
+      {/* Indian Emblem (Ashoka Chakra) behind the title */}
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <svg
+          width="520"
+          height="520"
+          viewBox="0 0 200 200"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="opacity-20 drop-shadow-[0_0_30px_rgba(99,102,241,0.25)]"
+        >
+          {/* Outer ring */}
+          <circle cx="100" cy="100" r="80" stroke="#1e3a8a" strokeWidth="4" />
+          {/* Inner hub */}
+          <circle cx="100" cy="100" r="6" fill="#1e3a8a" />
+          {/* Spokes */}
+          {spokes.map((deg) => (
+            <line
+              key={deg}
+              x1="100"
+              y1="100"
+              x2={100 + 70 * Math.cos((Math.PI / 180) * deg)}
+              y2={100 + 70 * Math.sin((Math.PI / 180) * deg)}
+              stroke="#1e3a8a"
+              strokeWidth="2"
+            />
+          ))}
+        </svg>
       </div>
 
       {/* Soft gradient overlay for readability (doesn't block Spline interactions) */}
