@@ -19,6 +19,13 @@ export default function SignInModal({ open, onClose, onSubmit }) {
       setError('Please enter both email and password.');
       return;
     }
+
+    const base = import.meta.env.VITE_BACKEND_URL;
+    if (!base) {
+      setError('Backend URL is not configured. Set VITE_BACKEND_URL in the environment.');
+      return;
+    }
+
     try {
       setLoading(true);
       const formData = new FormData();
@@ -28,20 +35,27 @@ export default function SignInModal({ open, onClose, onSubmit }) {
       if (preferences) formData.append('preferences', preferences);
       if (resume) formData.append('resume', resume);
 
-      const base = import.meta.env.VITE_BACKEND_URL;
       const res = await fetch(`${base}/auth/signin`, {
         method: 'POST',
+        // Important: do NOT set Content-Type when sending FormData
         body: formData,
+        mode: 'cors',
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data?.detail || 'Sign in failed');
+        throw new Error(data?.detail || `Sign in failed (${res.status})`);
       }
       const data = await res.json();
       onSubmit?.(data);
       onClose?.();
     } catch (err) {
-      setError(err?.message || 'Sign in failed');
+      const message = err?.message || 'Sign in failed';
+      // Network errors from fetch often surface as TypeError: Failed to fetch
+      if (message.toLowerCase().includes('failed to fetch')) {
+        setError('Could not reach the server. Check your internet, backend URL, and CORS.');
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }

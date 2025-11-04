@@ -10,8 +10,9 @@ function App() {
   const [user, setUser] = useState(() => {
     const raw = localStorage.getItem('ii_user');
     return raw ? JSON.parse(raw) : null;
-  });
+    });
   const [matches, setMatches] = useState([]);
+  const [notice, setNotice] = useState('');
 
   const backend = import.meta.env.VITE_BACKEND_URL;
 
@@ -19,21 +20,32 @@ function App() {
     setUser(data);
     localStorage.setItem('ii_user', JSON.stringify(data));
     setSignInOpen(false);
+    setNotice('');
     try {
-      // Ensure internships are present
-      await fetch(`${backend}/seed/internships`, { method: 'POST' });
-      // Fetch matches for the user
+      if (!backend) {
+        setNotice('Backend not configured. Set VITE_BACKEND_URL to enable matching.');
+        return;
+      }
+      await fetch(`${backend}/seed/internships`, { method: 'POST', mode: 'cors' });
       const res = await fetch(`${backend}/match/top`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: data.email, limit: 5 }),
+        mode: 'cors',
       });
       if (res.ok) {
         const m = await res.json();
         setMatches(m);
+      } else {
+        setNotice('Unable to fetch matches.');
       }
-    } catch (_) {
-      // ignore
+    } catch (err) {
+      const msg = (err?.message || '').toLowerCase();
+      if (msg.includes('failed to fetch')) {
+        setNotice('Could not reach backend. Check URL and CORS settings.');
+      } else {
+        setNotice('An error occurred while fetching matches.');
+      }
     }
   };
 
@@ -44,24 +56,23 @@ function App() {
   };
 
   useEffect(() => {
-    // If user exists on load, refresh matches
     (async () => {
-      if (user?.email) {
+      if (user?.email && backend) {
         try {
           const res = await fetch(`${backend}/match/top`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: user.email, limit: 5 }),
+            mode: 'cors',
           });
           if (res.ok) setMatches(await res.json());
         } catch {}
       }
     })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return {
-    /* Top-level container */
-  } && (
+  return (
     <div className="min-h-screen w-full bg-slate-950">
       {/* Top navigation */}
       <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-slate-950/70 backdrop-blur">
@@ -90,6 +101,14 @@ function App() {
         <Hero />
         <DashboardPreviews />
         <FeaturesGrid />
+
+        {notice && (
+          <div className="mx-auto max-w-7xl px-6">
+            <div className="mt-4 rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-4 text-sm text-yellow-200">
+              {notice}
+            </div>
+          </div>
+        )}
 
         {user && (
           <section id="matches" className="relative w-full bg-slate-950 py-16 text-white">
